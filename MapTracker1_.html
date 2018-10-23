@@ -1,0 +1,306 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html  lang="ru">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Map Tracker</title>
+    <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
+
+    <script>
+        $( function()
+        {
+            var mt = new MapTracker($('body'),1);
+            mt.start();
+        } );
+
+        var MapTracker = function(container,id)
+        {
+            this.container = container;
+            this.id = id;
+            this.numP = 1;
+            this.Path = null;
+            this.points = [];
+            this.myMap = null;
+            this.sortableContainer = "#sortable" + this.id;
+            this.listContainer = "#lft" +  this.id;
+            this.inputContainer = "inp" + this.id;
+            this.mapContainer = "map" + this.id;
+            container.append("<div class=\"lft\" id=\"lft" + this.id + "\">\n" +
+                "            <input type=\"text\" class=\"inp\" id=\"inp" + this.id + "\" placeholder=\"Введите адрес\">\n" +
+                "            <ul class=\"mt_ul\" id=\"sortable" + this.id + "\"></ul>\n" +
+                "        </div>\n" +
+                "\n" +
+                "        <div class=\"map\" id=\"map" + this.id +"\"></div>");
+        };
+
+        MapTracker.prototype.start = function ()
+        {
+            var context = this;
+            ymaps.ready(this.init,this);
+
+            //настраиваем перетаскиваемый список
+            $(this.sortableContainer).sortable({containment: this.listContainer});
+            $(this.sortableContainer).disableSelection();
+
+            //обработчик перетаскивания элементов списка
+            $(this.sortableContainer).sortable(
+                {stop:
+                        function( event, ui ) {
+                            context.drawPath();
+                        }
+                });
+            //ожидаем нажатия Enter
+            this.container.keypress(function(event)
+                {
+                    if (event.which === 13)
+                    {
+                        context.geocode();
+                        event.stopPropagation();
+                    }
+                });
+        };
+
+        MapTracker.prototype.init = function()
+        {
+            // Подключаем поисковые подсказки к полю ввода.
+            var suggestView = new ymaps.SuggestView(this.inputContainer);
+
+            this.myMap = new ymaps.Map(this.mapContainer,
+                {
+                    center: [55.76, 37.64], // Москва
+                    zoom: 10,
+                    controls: ['zoomControl']
+                },
+                {
+                    searchControlProvider: 'yandex#search'
+                });
+        };
+
+        MapTracker.prototype.geocode = function()
+        {
+            var context = this;
+            var request = $('#' + this.inputContainer).val();
+            ymaps.geocode(request).then(
+                function (res)
+                {
+                    var obj = res.geoObjects.get(0);
+                    if (obj)
+                        context.addPoint(obj);
+                    else
+                        context.showError('Адрес не найден');
+                })
+        };
+
+        MapTracker.prototype.showError = function(error)
+        {
+            var context = this;
+            $('#' + this.inputContainer).val("");
+            $('#' + this.inputContainer).attr("placeholder", error);
+            setTimeout(function(){
+                $('#' + context.inputContainer).attr("placeholder", "Введите адрес");
+            },2000);
+        };
+
+        MapTracker.prototype.addPoint = function(obj)
+        {
+            var context = this;
+            var coords = obj.geometry.getCoordinates();
+            var address = obj.getAddressLine();
+            var wpΝame = "Пункт "+ this.numP;
+            var idΚey = this.id + "_" + this.numP;
+
+            this.htmlAddpoint(this.numP,wpΝame);
+            $('#' + this.inputContainer).val("");
+
+            $( "#btn" + idΚey).click(function()
+                {
+                    context.deletePoint(this);
+                });
+
+            this.points[idΚey] = new ymaps.Placemark(coords,
+                {
+                    balloonContentHeader: wpΝame,
+                    balloonContentBody: address,
+                    hintContent: address,
+                    iconCaption: wpΝame
+                },
+                {
+                    iconColor: '#800080',
+                    draggable: true
+                });
+
+            this.myMap.geoObjects.add(this.points[idΚey]);
+
+            //обработчик перетаскивания метки
+            this.points[idΚey].events.add('drag', function(e)
+                {
+                    //Обновляем адрес в точке
+                    context.refreshAddress(this);
+                    context.drawPath();
+                },this.points[idΚey]);
+
+            this.numP++;
+
+            this.drawPath();
+            this.setBounds(this.Path.geometry.getCoordinates());
+        };
+
+        MapTracker.prototype.refreshAddress = function(point)
+        {
+            var coords = point.geometry.getCoordinates();
+            ymaps.geocode(coords).then(function(res)
+                {
+                    var obj = res.geoObjects.get(0);
+                    var address = obj.getAddressLine();
+                    point.properties.set(
+                        {
+                            balloonContentBody: address,
+                            hintContent: address
+                        });
+                });
+        };
+
+        MapTracker.prototype.deletePoint = function(domobj)
+        {
+            var liElement = $(domobj).parent().parent().parent();
+            var id = liElement.attr("id");
+            this.myMap.geoObjects.remove(this.points[id]);
+            delete this.points[id];
+            liElement.remove();
+            //Сбрасываем счетчик путевых точек, если удалены все точки
+            if (this.arrLen(this.points) == 0) this.numP = 1;
+            else this.drawPath();
+        };
+
+        MapTracker.prototype.drawPath = function()
+        {
+            var sortedIDs = $(this.sortableContainer).sortable("toArray");
+            var arrCoords = [];
+            //создаем массив координат
+            for (var key in sortedIDs)
+            {
+                var id = sortedIDs[key];
+                arrCoords.push(this.points[id].geometry.getCoordinates());
+            }
+            if (!this.Path)
+            {
+                this.Path = new ymaps.Polyline(
+                    arrCoords,
+                    {},
+                    {
+                        strokeColor: "#800080",
+                        strokeWidth: 4,
+                        strokeOpacity: 0.5
+                    });
+                this.myMap.geoObjects.add(this.Path);
+            }
+            else
+                this.Path.geometry.setCoordinates(arrCoords);
+        };
+
+        MapTracker.prototype.setBounds = function(coords)
+        {
+            if (!coords) return;
+            var minlat, minlon, maxlat, maxlon, bounds;
+            for (var numC in coords)
+            {
+                if (!minlat)
+                {
+                    minlat = maxlat = coords[numC][0];
+                    minlon = maxlon = coords[numC][1];
+                }
+                else
+                {
+                    if (coords[numC][0] > maxlat) maxlat = coords[numC][0];
+                    else if (coords[numC][0] < minlat) minlat = coords[numC][0];
+                    if (coords[numC][1] > maxlon) maxlon = coords[numC][1];
+                    else if (coords[numC][1] < minlon) minlon = coords[numC][1];
+                }
+            }
+            bounds = [[minlat,minlon],[maxlat,maxlon]];
+            this.myMap.setBounds(bounds,
+                {
+                    // Проверяем наличие тайлов на данном масштабе.
+                    checkZoomRange: true
+                });
+        };
+
+        MapTracker.prototype.arrLen = function(arr)
+        {
+            var num = 0;
+            for (var key in arr) num++;
+            return num;
+        };
+
+        MapTracker.prototype.htmlAddpoint = function(id,name)
+        {
+            var str="<li id=\"" + this.id + "_"+ id + "\"><div class=\"pnt\" ><span>" + name + "</span>" +
+                "<span class=\"R\"><button id=\"btn" + this.id + "_"+ id+ "\" class=\"btn\">x</button></span></div></li>";
+            $(this.sortableContainer).append(str);
+        };
+	
+    </script>
+    <style>
+        body, html {
+            width: 100%;
+            height: 100%;
+        }
+        .map {
+            width: 50%;
+            height: 90%;
+            position:relative;
+            left:210px;
+        }
+        .mt_ul {
+            cursor: pointer;
+            margin-left: 0; /* Отступ слева в браузере IE и Opera */
+            padding-left: 0; /* Отступ слева в браузере Firefox, Safari, Chrome */
+            list-style-type: none;
+        }
+        .lft{
+            position:absolute;
+            width:200px;
+        }
+
+        .inp{
+            padding: 4px;
+            width:90%;
+            margin: 5px;
+            border: 1px solid #999;
+            border-radius: 3px;
+            box-shadow: 0 0 1px 1px rgba(0, 0, 0, 0);
+            transition: .17s linear;
+        }
+        .inp:focus {
+            outline: none;
+            border: 1px solid rebeccapurple;
+            box-shadow: 0 0 1px 1px rebeccapurple;
+        }
+        .btn{
+            font-size: 8px;
+            border: 1px solid rgba(0,0,0,.1);
+            border-radius: 2px;
+            height: 15px;
+            width: 15px;
+        }
+        .pnt{
+            border-radius: 4px;
+            border: 1px solid;
+            margin: 5px;
+            padding:5px;
+            background-color: #fdffe2;
+        }
+        .pnt:hover {
+            outline: none;
+            border: 1px solid rebeccapurple;
+            box-shadow: 0 0 1px 1px rebeccapurple;
+        }
+        .R{
+            float:right;
+        }
+    </style>
+</head>
+<body>
+</body>
+</html>
