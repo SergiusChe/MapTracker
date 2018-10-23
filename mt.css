@@ -1,0 +1,57 @@
+body, html {
+    width: 100%;
+    height: 100%;
+}
+.map {
+    width: 50%;
+    height: 90%;
+    position:relative;
+    left:210px;
+}
+.mt_ul {
+    cursor: pointer;
+    margin-left: 0; /* Отступ слева в браузере IE и Opera */
+    padding-left: 0; /* Отступ слева в браузере Firefox, Safari, Chrome */
+    list-style-type: none;
+}
+.lft{
+    position:absolute;
+    width:200px;
+}
+
+.inp{
+    padding: 4px;
+    width:90%;
+    margin: 5px;
+    border: 1px solid #999;
+    border-radius: 3px;
+    box-shadow: 0 0 1px 1px rgba(0, 0, 0, 0);
+    transition: .17s linear;
+}
+.inp:focus {
+    outline: none;
+    border: 1px solid rebeccapurple;
+    box-shadow: 0 0 1px 1px rebeccapurple;
+}
+.btn{
+    font-size: 8px;
+    border: 1px solid rgba(0,0,0,.1);
+    border-radius: 2px;
+    height: 15px;
+    width: 15px;
+}
+.pnt{
+    border-radius: 4px;
+    border: 1px solid;
+    margin: 5px;
+    padding:5px;
+    background-color: #fdffe2;
+}
+.pnt:hover {
+    outline: none;
+    border: 1px solid rebeccapurple;
+    box-shadow: 0 0 1px 1px rebeccapurple;
+}
+.R{
+    float:right;
+}

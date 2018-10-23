@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html  lang = "ru">
+<head>
+    <meta http-equiv = "Content-Type" content = "text/html; charset = utf-8">
+    <title>Map Tracker</title>
+    <link rel = "stylesheet" href = "mt.css">
+    <script src = "mt.js"></script>
+    <script src = "https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src = "https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src = "http://ajax.aspnetcdn.com/ajax/jquery.templates/beta1/jquery.tmpl.js"></script>
+    <script src = "https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
+
+    <script id = "mtMain" type = "text/x-jquery-tmpl">
+        <div class = "lft" id = "${listContainer}">
+            <input type = "text" class = "inp" id = "${inputContainer}" placeholder = "${placeholder}">
+                <ul class = "mt_ul" id = "${sortableContainer}"></ul>
+        </div>
+        <div class = "map" id = "${mapContainer}"></div>
+    </script>
+
+    <script id = "mtLi" type = "text/x-jquery-tmpl">
+        <li id = "${idKey}">
+            <div class = "pnt">
+                ${wpName}<button id = "${btnId}" class = "btn R">x</button>
+            </div>
+        </li>
+    </script>
+
+    <script>
+        $( function()
+        {
+            var mt = new MapTracker($('body'),1);
+            mt.start();
+        } );
+
+    </script>
+</head>
+<body>
+</body>
+</html>
